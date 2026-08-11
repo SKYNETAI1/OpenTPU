@@ -1,0 +1,14 @@
+__pycache__/
+.ipynb_checkpoints/
+*.gguf
+build/
+*.c
+*.cpp
+*.h
+*.v
+*.vhd
+*.vhdl
+*.xo
+*.xclbin
+*.log
+*.jou

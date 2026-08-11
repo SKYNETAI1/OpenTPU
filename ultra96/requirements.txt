@@ -1,0 +1,4 @@
+numpy
+pynq==3.0.1
+tokenizers
+
