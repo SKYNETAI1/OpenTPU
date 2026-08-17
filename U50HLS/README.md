@@ -25,6 +25,29 @@ The runtime reads the supported GGUF or safetensors model file directly. It does
 
 Model weights and tokenizer files are not included. Obtain them separately and comply with their respective licenses and usage terms.
 
+## Model Downloads
+
+The following direct Hugging Face download links have been verified:
+
+| Model | Download | Runtime compatibility |
+| --- | --- | --- |
+| Gemma 4 E4B Q4_K_M | [Download `gemma-4-E4B-it-Q4_K_M.gguf`](https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf?download=true) | Supported directly by the `gemma` profile |
+| Qwen3.5-9B Q4_K_M | [Download `Qwen3.5-9B.Q4_K_M.gguf`](https://huggingface.co/mradermacher/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B.Q4_K_M.gguf?download=true) | Supported by the `qwen9` profile when supplied with `--qwen9-model` |
+| Qwen3.5-2B BF16 | [Download `model.safetensors-00001-of-00001.safetensors`](https://huggingface.co/Qwen/Qwen3.5-2B/resolve/main/model.safetensors-00001-of-00001.safetensors?download=true) | Supported directly by the `qwen2` profile |
+
+For Qwen3.5-9B, pass the downloaded public file explicitly because its filename differs from the legacy default:
+
+```bash
+python u50_three_model_chat.py \
+  --model qwen9 \
+  --qwen9-model "$PWD/models/Qwen3.5-9B.Q4_K_M.gguf" \
+  --interactive
+```
+
+The Qwen3.5-9B public file has the same 427 tensor descriptors and tensor layout as the legacy `Qwen3.5-9B-MIO-Q4_K_M.gguf`; only GGUF metadata fields differ.
+
+The Qwen3.5-2B direct link downloads the model weight file. Its tokenizer files must also be downloaded from the [Qwen/Qwen3.5-2B repository](https://huggingface.co/Qwen/Qwen3.5-2B) and placed in the configured `qwen352b` tokenizer directory.
+
 ## Package Contents
 
 ```text
