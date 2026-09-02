@@ -13,13 +13,12 @@ separately and remain subject to their original licenses.
 
 | Directory | Hardware | Supported models | Runtime | Status |
 | --- | --- | --- | --- | --- |
-| [`U50HLS`](./U50HLS) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Recommended U50 release |
-| [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Earlier U50 release snapshot |
+| [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Recommended, latest U50 release |
+| [`U50HLS`](./U50HLS) | AMD/Xilinx Alveo U50 | Qwen3.5-9B-MIO Q4_K_M; Gemma 4 E4B Q4_K_M; Qwen3.5-2B BF16 | Linux x86-64, CPython 3.12, XRT | Earlier HLS-based U50 release |
 | [`ultra96`](./ultra96) | Ultra96-V2 | Qwen3.5-2B Q3_K_S | PYNQ 3.0, AArch64, CPython 3.10 | Embedded-board release |
 
-The local HLS development line is published as the binary-only `U50HLS`
-release. New Alveo U50 users should start there. The `tpu2x512` directory is
-retained so earlier deployments remain reproducible.
+New Alveo U50 users should start with `tpu2x512`. The earlier HLS development
+line is preserved in `U50HLS` so its three-model release remains reproducible.
 
 ## Project Highlights
 
@@ -34,7 +33,7 @@ retained so earlier deployments remain reproducible.
 
 ## Current Alveo U50 Release
 
-The recommended [`U50HLS`](./U50HLS) package contains one XCLBIN for both
+The recommended [`tpu2x512`](./tpu2x512) package contains one XCLBIN for both
 validated U50 model profiles. It was built with Vitis 2025.2 for the
 `xilinx_u50_gen3x16_xdma_5_202210_1` platform and has an implemented DATA clock
 of 168 MHz.
@@ -89,11 +88,11 @@ git lfs pull
 ### Alveo U50
 
 Read the model download and platform instructions in
-[`U50HLS/README.md`](./U50HLS/README.md), then create the required CPython 3.12
+[`tpu2x512/README.md`](./tpu2x512/README.md), then create the required CPython 3.12
 environment:
 
 ```bash
-cd U50HLS
+cd tpu2x512
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -149,8 +148,8 @@ a persistent converted-weight sidecar file.
 ```text
 OpenTPU/
 |-- README.md       Project overview and release selector
-|-- U50HLS/         Current Alveo U50 binary release
-|-- tpu2x512/       Earlier Alveo U50 release snapshot
+|-- tpu2x512/       Current Alveo U50 binary release
+|-- U50HLS/         Earlier HLS-based Alveo U50 release
 `-- ultra96/        Ultra96-V2 binary release and notebook
 ```
 

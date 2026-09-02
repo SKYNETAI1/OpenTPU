@@ -15,9 +15,19 @@ caches.
 - Incremental prefill after the first turn
 - Direct loading of the original, publicly downloadable GGUF files
 - Text-only Qwen3.5-9B and Gemma 4 12B chat
-- Measured single-card decode throughput up to 2.54 tokens/s
+- Measured single-card decode throughput up to 3.37 tokens/s
 - Prebuilt, stripped CPython runtime modules
 - Binary-only distribution with private build paths removed
+
+## Current Release
+
+- Packaged DATA clock: 168 MHz (300 MHz requested, automatically scaled to
+  the routed timing-safe frequency by Vitis)
+- Updated multi-turn runtime that commits the assistant turn ending before the
+  next prompt
+- Stable incremental-prefill accounting: later turns contain only the newly
+  formatted user turn, while `cached_position` tracks retained FPGA state
+- Verified 512-token resident contexts for both published model profiles
 
 ## Supported Models
 
@@ -60,15 +70,15 @@ wget -O models/gemma-4-12b-it-Q4_K_S.gguf \
 
 ```text
 .
-├── README.md
-├── requirements.txt
-├── SHA256SUMS
-├── u50_chat.py
-├── runtime/
-│   ├── tpu2x512_runtime_core.cpython-312-x86_64-linux-gnu.so
-│   └── model-specific compiled runtime modules
-└── xclbin/
-    └── tpu3_hls_full_token.xclbin
+|-- README.md
+|-- requirements.txt
+|-- SHA256SUMS
+|-- u50_chat.py
+|-- runtime/
+|   |-- tpu2x512_runtime_core.cpython-312-x86_64-linux-gnu.so
+|   `-- model-specific compiled runtime modules
+`-- xclbin/
+    `-- tpu3_hls_full_token.xclbin
 ```
 
 This release intentionally excludes RTL, HLS, Chisel/Scala, descriptor-generator
@@ -88,8 +98,9 @@ are redacted from the public copy.
 - Sufficient host storage for the selected GGUF and tokenizer
 
 The packaged XCLBIN contains kernel `tpu3_hls_full_token`. It was built with
-Vitis 2025.2 and its implemented data clock is 90.3 MHz. The default resident
-context is 128 tokens.
+Vitis 2025.2 and its implemented DATA clock is 168 MHz. The default resident
+context is 128 tokens; both model profiles also pass the HBM-capacity check at
+512 tokens.
 
 ## Installation
 
@@ -129,10 +140,10 @@ The default model layout is next to the launcher:
 
 ```text
 models/
-├── Qwen3.5-9B-Q4_K_M.gguf
-├── gemma-4-12b-it-Q4_K_S.gguf
-└── qwen-tokenizer/
-    └── tokenizer.json
+|-- Qwen3.5-9B-Q4_K_M.gguf
+|-- gemma-4-12b-it-Q4_K_S.gguf
+`-- qwen-tokenizer/
+    `-- tokenizer.json
 ```
 
 Alternatively, set a common model directory:
@@ -166,8 +177,23 @@ python u50_chat.py --model qwen --interactive
 python u50_chat.py --model gemma --interactive
 ```
 
-At the prompt, type a message such as `你好` or `Hello`. Use `/clear` to reset
+At the prompt, type a message such as `Hello`. Use `/clear` to reset
 the conversation and its FPGA state, or `/exit` to quit.
+
+For longer replies and a larger retained conversation window:
+
+```bash
+python u50_chat.py \
+  --model gemma \
+  --interactive \
+  --max-new-tokens 64 \
+  --max-context 512
+```
+
+`--max-new-tokens` limits newly generated tokens per assistant reply; it does
+not control prefill. A value such as 16 is useful for a quick hardware test but
+can truncate a normal reply. `--max-context` covers the complete retained
+conversation, including prompts, replies, and turn delimiters.
 
 To use explicit paths:
 
@@ -190,8 +216,8 @@ Run a single prompt:
 ```bash
 python u50_chat.py \
   --model qwen \
-  --prompt "你好" \
-  --max-new-tokens 16
+  --prompt "Hello" \
+  --max-new-tokens 64
 ```
 
 Run Gemma and write a machine-readable result:
@@ -199,7 +225,7 @@ Run Gemma and write a machine-readable result:
 ```bash
 python u50_chat.py \
   --model gemma \
-  --prompt "你好" \
+  --prompt "Hello" \
   --max-new-tokens 32 \
   --json gemma-result.json
 ```
@@ -211,23 +237,32 @@ model's FPGA KV/SSM state and prefill only the newly appended turn tokens. The
 interactive progress line therefore reports `new_prefill_tokens`, not the
 total historical conversation length.
 
+The assistant's final generated token and the turn-ending token are committed
+to FPGA state immediately after each reply. They are not deferred to, or
+counted as part of, the next turn's prefill. Repeating the same user message
+therefore produces a stable `new_prefill_tokens` count instead of a count that
+grows with conversation history. `cached_position` is expected to increase: it
+is the retained context position and confirms that earlier state was reused.
+
 Entering `/clear`, switching models, or restarting the process creates fresh
-state and requires a new full prefill.
+state and requires a new full prefill. Token execution time can still increase
+with sequence position because attention operates over a longer retained
+context even though historical tokens are not re-prefilled.
 
 ## Measured U50 Performance
 
-These results were measured on one Alveo U50 with the packaged 90.3 MHz XCLBIN
-and the exact model files listed above. The prompt was `你好`, context was 128,
-and inference used one model and one generation stream. Decode throughput
-excludes the first output token; TTFT includes prompt prefill.
+These results were measured on one Alveo U50 with the packaged 168 MHz XCLBIN
+and the exact model files listed above. The benchmark used a two-character
+Chinese greeting, context was 128, and inference used one model and one
+generation stream. Decode throughput excludes the first output token; TTFT
+includes prompt prefill.
 
 | Model | Prefill tokens | Generated tokens | Stop condition | TTFT | Decode time | Decode throughput | Total time |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
-| Qwen3.5-9B Q4_K_M | 13 | 9 | EOS | 4.585 s | 3.155 s | 2.536 tokens/s | 7.745 s |
-| Gemma 4 12B IT Q4_K_S | 10 | 16 | generation limit | 4.558 s | 8.619 s | 1.740 tokens/s | 13.455 s |
-| Gemma 4 12B IT Q4_K_S | 10 | 21 | EOS | 4.558 s | 11.827 s | 1.691 tokens/s | 16.705 s |
+| Qwen3.5-9B Q4_K_M | 13 | 9 | EOS | 3.403 s | 2.371 s | 3.374 tokens/s | 5.778 s |
+| Gemma 4 12B IT Q4_K_S | 10 | 21 | EOS | 3.560 s | 8.868 s | 2.255 tokens/s | 12.639 s |
 
-The measured replies were coherent Chinese greetings. These are short-prompt,
+The measured replies were coherent greeting responses. These are short-prompt,
 single-run measurements rather than batched throughput or a statistical
 benchmark. Performance varies with prompt length, sequence position, host
 storage, PCIe state, XRT version, and board clock behavior.
