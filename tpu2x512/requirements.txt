@@ -1,0 +1,4 @@
+numpy>=1.24
+transformers>=4.40
+tokenizers>=0.19
+llama-cpp-python>=0.3

@@ -1,0 +1,11 @@
+*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/requirements.txt
+!/SHA256SUMS
+!/u50_chat.py
+!/runtime/
+!/runtime/*.so
+!/xclbin/
+!/xclbin/*.xclbin
