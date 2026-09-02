@@ -1,81 +1,106 @@
-# Direct-Model LLM Runtime for AMD Alveo U50
+# Direct-Model TPU2x512 Runtime for AMD Alveo U50
 
-This repository contains a packaged FPGA runtime for interactive large-language-model inference on a single AMD/Xilinx Alveo U50. One XCLBIN supports all three included model profiles, and the command-line launcher can run them individually or sequentially.
+This directory contains a packaged FPGA runtime for interactive text generation
+on one AMD/Xilinx Alveo U50. One XCLBIN supports two validated GGUF model
+profiles: Qwen3.5-9B Q4_K_M and Gemma 4 12B IT Q4_K_S.
 
-The runtime reads the supported GGUF or safetensors model file directly. It does not require an offline weight-conversion step or a second, repacked weight file.
+The runtime reads each supported GGUF file directly. It does not require an
+offline weight-conversion step, a repacked sidecar image, or generated weight
+caches.
 
 ## Highlights
 
-- One U50 XCLBIN for three model profiles
+- One U50 XCLBIN for both supported model profiles
 - Interactive multi-turn chat with retained FPGA KV/SSM state
 - Incremental prefill after the first turn
-- Direct loading of original GGUF and safetensors weights
-- Q4_K_M and BF16 model support
-- Eight HBM weight channels
-- Measured single-card decode throughput up to 5.52 tokens/s
+- Direct loading of the original, publicly downloadable GGUF files
+- Text-only Qwen3.5-9B and Gemma 4 12B chat
+- Measured single-card decode throughput up to 3.37 tokens/s
 - Prebuilt, stripped CPython runtime modules
+- Binary-only distribution with private build paths removed
+
+## Current Release
+
+- Packaged DATA clock: 168 MHz (300 MHz requested, automatically scaled to
+  the routed timing-safe frequency by Vitis)
+- Updated multi-turn runtime that commits the assistant turn ending before the
+  next prompt
+- Stable incremental-prefill accounting: later turns contain only the newly
+  formatted user turn, while `cached_position` tracks retained FPGA state
+- Verified 512-token resident contexts for both published model profiles
 
 ## Supported Models
 
 | Launcher name | Model profile | Weight format | Default model file |
 | --- | --- | --- | --- |
-| `qwen9` | Qwen3.5-9B-MIO Q4_K_M | GGUF | `Qwen3.5-9B-MIO-Q4_K_M.gguf` |
-| `gemma` | Gemma 4 E4B Q4_K_M | GGUF | `gemma-4-E4B-it-Q4_K_M.gguf` |
-| `qwen2` | Qwen3.5-2B BF16 | safetensors | `model.safetensors-00001-of-00001.safetensors` |
+| `qwen` | Qwen3.5-9B Q4_K_M | GGUF | `Qwen3.5-9B-Q4_K_M.gguf` |
+| `gemma` | Gemma 4 12B IT Q4_K_S | GGUF | `gemma-4-12b-it-Q4_K_S.gguf` |
 
-Model weights and tokenizer files are not included. Obtain them separately and comply with their respective licenses and usage terms.
+Model weights and tokenizer data are not included. Download them separately and
+comply with their respective licenses and usage terms. Other quantizations and
+similarly named checkpoints are not guaranteed to match this runtime.
 
-## Model Downloads
+## Verified Model Downloads
 
-The following direct Hugging Face download links have been verified:
+The following public files were compared byte-for-byte with the files used for
+U50 validation:
 
-| Model | Download | Runtime compatibility |
+| File | Download | SHA-256 |
 | --- | --- | --- |
-| Gemma 4 E4B Q4_K_M | [Download `gemma-4-E4B-it-Q4_K_M.gguf`](https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf?download=true) | Supported directly by the `gemma` profile |
-| Qwen3.5-9B Q4_K_M | [Download `Qwen3.5-9B.Q4_K_M.gguf`](https://huggingface.co/mradermacher/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B.Q4_K_M.gguf?download=true) | Supported by the `qwen9` profile when supplied with `--qwen9-model` |
-| Qwen3.5-2B BF16 | [Download `model.safetensors-00001-of-00001.safetensors`](https://huggingface.co/Qwen/Qwen3.5-2B/resolve/main/model.safetensors-00001-of-00001.safetensors?download=true) | Supported directly by the `qwen2` profile |
+| Qwen3.5-9B Q4_K_M | [Download `Qwen3.5-9B-Q4_K_M.gguf`](https://huggingface.co/tinnlab/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf?download=true) | `03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8` |
+| Qwen3.5-9B tokenizer | [Download `tokenizer.json`](https://huggingface.co/Qwen/Qwen3.5-9B/resolve/main/tokenizer.json?download=true) | `5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42` |
+| Gemma 4 12B IT Q4_K_S | [Download `gemma-4-12b-it-Q4_K_S.gguf`](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q4_K_S.gguf?download=true) | `8bfbcccb50049e670dcc55ba1aabf7e79c65c06eea96e42a0689baf7503aa81f` |
 
-For Qwen3.5-9B, pass the downloaded public file explicitly because its filename differs from the legacy default:
+Download directly into the default layout:
 
 ```bash
-python u50_three_model_chat.py \
-  --model qwen9 \
-  --qwen9-model "$PWD/models/Qwen3.5-9B.Q4_K_M.gguf" \
-  --interactive
+mkdir -p models/qwen-tokenizer
+
+wget -O models/Qwen3.5-9B-Q4_K_M.gguf \
+  'https://huggingface.co/tinnlab/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf?download=true'
+
+wget -O models/qwen-tokenizer/tokenizer.json \
+  'https://huggingface.co/Qwen/Qwen3.5-9B/resolve/main/tokenizer.json?download=true'
+
+wget -O models/gemma-4-12b-it-Q4_K_S.gguf \
+  'https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q4_K_S.gguf?download=true'
 ```
-
-The Qwen3.5-9B public file has the same 427 tensor descriptors and tensor layout as the legacy `Qwen3.5-9B-MIO-Q4_K_M.gguf`; only GGUF metadata fields differ.
-
-The Qwen3.5-2B direct link downloads the model weight file. Its tokenizer files must also be downloaded from the [Qwen/Qwen3.5-2B repository](https://huggingface.co/Qwen/Qwen3.5-2B) and placed in the configured `qwen352b` tokenizer directory.
 
 ## Package Contents
 
 ```text
 .
-├── README.md
-├── requirements.txt
-├── SHA256SUMS
-├── u50_three_model_chat.py
-├── runtime/
-│   ├── u50_runtime_core.cpython-312-x86_64-linux-gnu.so
-│   └── model-specific runtime modules
-└── xclbin/
-    └── full_token_rtl_probe_auto.xclbin
+|-- README.md
+|-- requirements.txt
+|-- SHA256SUMS
+|-- u50_chat.py
+|-- runtime/
+|   |-- tpu2x512_runtime_core.cpython-312-x86_64-linux-gnu.so
+|   `-- model-specific compiled runtime modules
+`-- xclbin/
+    `-- tpu3_hls_full_token.xclbin
 ```
 
-This is a binary runtime distribution. It intentionally does not include HLS/RTL source code, build projects, model weights, test fixtures, implementation reports, or development logs.
+This release intentionally excludes RTL, HLS, Chisel/Scala, descriptor-generator
+source, build projects, model weights, tokenizer files, test fixtures,
+implementation reports, and development logs. The XCLBIN retains the sections
+required by XRT, while private build-command metadata and local filesystem paths
+are redacted from the public copy.
 
 ## Hardware and Software Requirements
 
 - AMD/Xilinx Alveo U50
-- U50 platform shell `xilinx_u50_gen3x16_xdma_5_202210_1`
-- 64-bit x86 Linux with glibc 2.14 or newer
-- AMD Xilinx Runtime (XRT) with Python `pyxrt` support; XRT 2.19 is recommended
-- CPython 3.12 exactly, because the packaged extension modules use the CPython 3.12 ABI
+- U50 shell compatible with `xilinx_u50_gen3x16_xdma_5_202210_1`
+- 64-bit x86 Linux
+- AMD Xilinx Runtime (XRT) with Python `pyxrt` support; XRT 2.21 was used for validation
+- CPython 3.12 exactly, because the packaged extensions use the CPython 3.12 ABI
 - Git LFS for downloading the XCLBIN
-- Sufficient local storage for the selected model and its tokenizer
+- Sufficient host storage for the selected GGUF and tokenizer
 
-The packaged XCLBIN contains kernel `full_token_rtl_probe`. Its implemented data clock is 186 MHz (186.8 MHz achieved during implementation). It was built with Vitis 2025.2.
+The packaged XCLBIN contains kernel `tpu3_hls_full_token`. It was built with
+Vitis 2025.2 and its implemented DATA clock is 168 MHz. The default resident
+context is 128 tokens; both model profiles also pass the HBM-capacity check at
+512 tokens.
 
 ## Installation
 
@@ -83,8 +108,8 @@ Clone the repository with Git LFS enabled:
 
 ```bash
 git lfs install
-git clone <repository-url>
-cd <repository-directory>
+git clone https://github.com/SKYNETAI1/OpenTPU.git
+cd OpenTPU/U50HLS
 git lfs pull
 ```
 
@@ -111,15 +136,14 @@ sha256sum -c SHA256SUMS
 
 ## Model Setup
 
-The default layout is a `models` directory next to the launcher:
+The default model layout is next to the launcher:
 
 ```text
 models/
-├── Qwen3.5-9B-MIO-Q4_K_M.gguf
-├── gemma-4-E4B-it-Q4_K_M.gguf
-├── model.safetensors-00001-of-00001.safetensors
-└── qwen352b/
-    └── tokenizer files
+|-- Qwen3.5-9B-Q4_K_M.gguf
+|-- gemma-4-12b-it-Q4_K_S.gguf
+`-- qwen-tokenizer/
+    `-- tokenizer.json
 ```
 
 Alternatively, set a common model directory:
@@ -128,99 +152,140 @@ Alternatively, set a common model directory:
 export U50_MODEL_DIR=/absolute/path/to/models
 ```
 
-Individual model and tokenizer paths can also be supplied on the command line.
+Individual model, tokenizer, and XCLBIN paths can also be supplied on the
+command line.
+
+## Preflight Validation
+
+Validate model metadata, descriptor generation, XCLBIN presence, and U50 HBM
+capacity without programming the card:
+
+```bash
+python u50_chat.py --model qwen --check-only
+python u50_chat.py --model gemma --check-only
+```
+
+Both published profiles passed this check with the files and hashes listed
+above.
 
 ## Interactive Chat
 
-Start one model in interactive mode:
+Start Qwen or Gemma in multi-turn mode:
 
 ```bash
-python u50_three_model_chat.py --model qwen9 --interactive
-python u50_three_model_chat.py --model gemma --interactive
-python u50_three_model_chat.py --model qwen2 --interactive
+python u50_chat.py --model qwen --interactive
+python u50_chat.py --model gemma --interactive
 ```
 
-At the prompt, type a message such as `Hello`. Use `/clear` to reset the conversation and its FPGA state, or `/exit` to quit.
+At the prompt, type a message such as `Hello`. Use `/clear` to reset
+the conversation and its FPGA state, or `/exit` to quit.
+
+For longer replies and a larger retained conversation window:
+
+```bash
+python u50_chat.py \
+  --model gemma \
+  --interactive \
+  --max-new-tokens 64 \
+  --max-context 512
+```
+
+`--max-new-tokens` limits newly generated tokens per assistant reply; it does
+not control prefill. A value such as 16 is useful for a quick hardware test but
+can truncate a normal reply. `--max-context` covers the complete retained
+conversation, including prompts, replies, and turn delimiters.
 
 To use explicit paths:
 
 ```bash
-python u50_three_model_chat.py \
-  --model qwen9 \
-  --qwen9-model /models/Qwen3.5-9B-MIO-Q4_K_M.gguf \
-  --xclbin /opt/u50/full_token_rtl_probe_auto.xclbin \
+python u50_chat.py \
+  --model qwen \
+  --qwen-model /models/Qwen3.5-9B-Q4_K_M.gguf \
+  --qwen-tokenizer /models/qwen-tokenizer/tokenizer.json \
+  --xclbin /opt/u50/tpu3_hls_full_token.xclbin \
   --interactive
 ```
 
-Select a different U50 with `--device`. Run `python u50_three_model_chat.py --help` for all path, generation, device, and output options.
+Select another U50 with `--device`. Run `python u50_chat.py --help` for all
+model, path, context, generation, timeout, and output options.
 
-## One-Shot and Sequential Runs
+## One-Shot Runs
 
 Run a single prompt:
 
 ```bash
-python u50_three_model_chat.py \
-  --model qwen9 \
+python u50_chat.py \
+  --model qwen \
   --prompt "Hello" \
-  --max-new-tokens 16
+  --max-new-tokens 64
 ```
 
-Run the same prompt on all three profiles, one after another:
+Run Gemma and write a machine-readable result:
 
 ```bash
-python u50_three_model_chat.py \
-  --model all \
+python u50_chat.py \
+  --model gemma \
   --prompt "Hello" \
-  --max-new-tokens 16
+  --max-new-tokens 32 \
+  --json gemma-result.json
 ```
-
-`--model all` is serial, not concurrent. Only one model is resident and executing at a time.
-
-Machine-readable one-shot results can be written with `--json results.json`.
 
 ## Conversation State and Prefill
 
-The first turn prefills the complete formatted prompt. On later turns, the runtime retains the model's FPGA KV/SSM state and prefills only the newly appended user-turn tokens. The progress counter therefore reports `new_prefill_tokens`, not the total historical conversation length.
+The first turn prefills the complete formatted prompt. Later turns retain the
+model's FPGA KV/SSM state and prefill only the newly appended turn tokens. The
+interactive progress line therefore reports `new_prefill_tokens`, not the
+total historical conversation length.
 
-Starting a different model, restarting the process, or entering `/clear` creates fresh state and requires a new full prefill.
+The assistant's final generated token and the turn-ending token are committed
+to FPGA state immediately after each reply. They are not deferred to, or
+counted as part of, the next turn's prefill. Repeating the same user message
+therefore produces a stable `new_prefill_tokens` count instead of a count that
+grows with conversation history. `cached_position` is expected to increase: it
+is the retained context position and confirms that earlier state was reused.
 
-## Performance
+Entering `/clear`, switching models, or restarting the process creates fresh
+state and requires a new full prefill. Token execution time can still increase
+with sequence position because attention operates over a longer retained
+context even though historical tokens are not re-prefilled.
 
-The following results were measured on one Alveo U50 with the packaged 186 MHz XCLBIN. Each test used a short two-turn conversation and generated eight tokens per reply. Throughput is single-stream decode throughput; it is not a batched aggregate.
+## Measured U50 Performance
 
-| Model | Original weight size | Startup load | First-turn TTFT | Measured decode |
-| --- | ---: | ---: | ---: | ---: |
-| Qwen3.5-9B-MIO Q4_K_M | 5.627 GB | 2.03 s* | 2.86 s | 3.81-4.01 tokens/s |
-| Gemma 4 E4B Q4_K_M | 4.977 GB | 6.43 s | 2.01 s | 3.66-4.17 tokens/s |
-| Qwen3.5-2B BF16 | 4.548 GB | 5.93 s | 1.80 s | 5.38-5.52 tokens/s |
+These results were measured on one Alveo U50 with the packaged 168 MHz XCLBIN
+and the exact model files listed above. The benchmark used a two-character
+Chinese greeting, context was 128, and inference used one model and one
+generation stream. Decode throughput excludes the first output token; TTFT
+includes prompt prefill.
 
-*Startup loading depends heavily on host storage, PCIe state, and the operating-system page cache. The 2.03-second result may include a warm file cache and should not be treated as steady-state inference throughput.
+| Model | Prefill tokens | Generated tokens | Stop condition | TTFT | Decode time | Decode throughput | Total time |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| Qwen3.5-9B Q4_K_M | 13 | 9 | EOS | 3.403 s | 2.371 s | 3.374 tokens/s | 5.778 s |
+| Gemma 4 12B IT Q4_K_S | 10 | 21 | EOS | 3.560 s | 8.868 s | 2.255 tokens/s | 12.639 s |
 
-The architecture-level cycle model gives the following ideal no-stall estimates:
-
-| Model | Estimated cycles/token | Ideal throughput at 186 MHz | Clock required for 8 tokens/s |
-| --- | ---: | ---: | ---: |
-| Qwen3.5-9B-MIO Q4_K_M | 34,580,751 | 5.38 tokens/s | 276.65 MHz |
-| Gemma 4 E4B Q4_K_M | 32,934,036 | 5.65 tokens/s | 263.47 MHz |
-| Qwen3.5-2B BF16 | 34,558,858 | 5.38 tokens/s | 276.47 MHz |
-
-These cycle-derived values describe an ideal schedule without external stalls. Actual board throughput also includes HBM access, kernel launch, control, synchronization, and host-runtime overhead. They are design estimates, not additional benchmark results.
+The measured replies were coherent greeting responses. These are short-prompt,
+single-run measurements rather than batched throughput or a statistical
+benchmark. Performance varies with prompt length, sequence position, host
+storage, PCIe state, XRT version, and board clock behavior.
 
 ## Direct Weight Loading
 
-For supported models, the runtime reads the original GGUF or safetensors file and transfers its weight bytes to eight U50 HBM buffers. The transfer stripes unchanged 32-byte beats by address across the HBM channels. Quantized values are decoded by the FPGA operators during execution.
+For both supported profiles, the runtime reads the original GGUF bytes and
+loads them directly into U50 HBM at startup. Quantized values are consumed by
+the FPGA runtime without creating a converted model file. Runtime diagnostics
+therefore report `transformed_weight_bytes=0`.
 
-There is no offline numerical conversion, no generated weight cache, and no converted sidecar image. Runtime diagnostics report `transformed_weight_bytes=0`. Loading into device HBM at startup is still required.
+Device upload is still required whenever a model is started. Host storage and
+operating-system page-cache state can materially affect startup time.
 
 ## Compatibility and Limitations
 
-- The packaged runtime targets the exact model profiles and file formats listed above; similarly named checkpoints are not guaranteed to work.
+- Only the exact model profiles and file hashes listed above were validated.
+- The launcher currently supports text prompts; multimodal inputs are not exposed.
 - The XCLBIN targets the specified U50 shell. A shell mismatch can prevent programming or execution.
 - The binary Python modules require Linux x86-64 and CPython 3.12.
-- The current launcher executes one model and one generation stream at a time; it does not implement request batching.
-- Model context limits and generation limits remain profile-specific.
-- Performance varies with prompt length, sequence position, sampling configuration, host system, XRT version, and board clock behavior.
-- Binary packaging raises the reverse-engineering barrier but does not provide absolute source-code secrecy.
+- One model and one generation stream execute at a time; request batching is not implemented.
+- The default context is 128. Larger values must pass `--check-only` HBM-capacity validation.
+- Binary packaging raises the reverse-engineering barrier but does not guarantee absolute secrecy.
 
 ## Troubleshooting
 
@@ -234,32 +299,40 @@ git lfs pull
 
 ### No U50 device is found
 
-Check device and driver status:
+Check the PCIe device and XRT driver status:
 
 ```bash
 xbutil examine
 ```
 
-Then select the correct index with `--device` if it is not device `0`.
+If the card is not device `0`, select its index with `--device`.
 
 ### The packaged runtime cannot be imported
 
-Confirm the interpreter and architecture:
+Confirm the interpreter and host architecture:
 
 ```bash
 python --version
 uname -m
 ```
 
-The current package requires CPython 3.12 on Linux x86-64. Also confirm that XRT and `pyxrt` are installed in the active environment.
+This package requires CPython 3.12 on Linux x86-64. Also confirm that XRT and
+`pyxrt` are available in the active environment.
 
 ### XCLBIN programming fails
 
-Verify that the installed U50 platform shell matches `xilinx_u50_gen3x16_xdma_5_202210_1`, and inspect the XRT diagnostics reported by `xbutil examine`.
+Verify that the installed U50 platform shell matches
+`xilinx_u50_gen3x16_xdma_5_202210_1`, then inspect `xbutil examine` output.
 
 ### A model or tokenizer cannot be found
 
-Check the default `models` layout, set `U50_MODEL_DIR`, or pass an explicit model/tokenizer path. Paths should be absolute when diagnosing lookup problems.
+Check the default `models` layout, set `U50_MODEL_DIR`, or pass explicit paths.
+Use absolute paths while diagnosing lookup problems.
+
+### A model fails the preflight check
+
+Confirm its filename and SHA-256 against the verified download table. A GGUF
+with a different quantization, tensor layout, or revision may not be compatible.
 
 ## Integrity
 
