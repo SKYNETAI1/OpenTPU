@@ -29,6 +29,27 @@ caches.
   formatted user turn, while `cached_position` tracks retained FPGA state
 - Verified 512-token resident contexts for both published model profiles
 
+## Compute Architecture: TPU2x512 vs TPU32x32
+
+The two U50 releases expose the same model-level workflow but organize their
+1024 integer MACs differently. The names describe the physical compute shape,
+not different numerical models or a 2x throughput relationship.
+
+| Property | TPU2x512 (this package) | [TPU32x32](../tpu32x32/) |
+| --- | --- | --- |
+| Peak integer work | `2 x 512 = 1024` MACs/cycle | `32 x 32 = 1024` MACs/cycle |
+| Physical organization | Two wide 512-MAC clusters | Four local `8 x 32` islands operating together |
+| Data movement emphasis | A shared wide streaming/alignment front end feeds the two clusters | Decode tiles, activation reads, and accumulator state stay local to each island |
+| Reduction style | Each cluster forms wide partial dot-product contributions before accumulation | Each island retains eight output rows locally; completed rows are reduced and serialized at the boundary |
+| Main implementation tradeoff | Less replicated local control, but wider shared datapaths and longer high-fanout routes | More local state/control replication, but shorter wiring and lower global fanout |
+
+Both designs retain the same 1024-MAC/cycle arithmetic ceiling and the same
+direct-GGUF software interface. End-to-end token speed is still determined by
+the implemented clock, HBM efficiency, model operation mix, and sequence
+length; the array shape alone does not predict tokens per second. TPU2x512
+favors a wide streaming structure, whereas TPU32x32 favors placement and
+routing locality on the multi-region U50 fabric.
+
 ## Supported Models
 
 | Launcher name | Model profile | Weight format | Default model file |
