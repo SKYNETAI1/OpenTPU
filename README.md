@@ -13,12 +13,33 @@ separately and remain subject to their original licenses.
 
 | Directory | Hardware | Supported models | Runtime | Status |
 | --- | --- | --- | --- | --- |
-| [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Recommended, latest U50 release |
+| [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Wide-streaming U50 release; highest measured single-stream speed |
+| [`tpu32x32`](./tpu32x32) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Locality-oriented U50 release with four compute islands |
 | [`U50HLS`](./U50HLS) | AMD/Xilinx Alveo U50 | Qwen3.5-9B-MIO Q4_K_M; Gemma 4 E4B Q4_K_M; Qwen3.5-2B BF16 | Linux x86-64, CPython 3.12, XRT | Earlier HLS-based U50 release |
 | [`ultra96`](./ultra96) | Ultra96-V2 | Qwen3.5-2B Q3_K_S | PYNQ 3.0, AArch64, CPython 3.10 | Embedded-board release |
 
-New Alveo U50 users should start with `tpu2x512`. The earlier HLS development
-line is preserved in `U50HLS` so its three-model release remains reproducible.
+New Alveo U50 users prioritizing measured single-stream throughput should
+start with `tpu2x512`. Use `tpu32x32` to evaluate the placement-local,
+square-array organization. The earlier HLS development line is preserved in
+`U50HLS` so its three-model release remains reproducible.
+
+## U50 Compute Architecture Choices
+
+The two current U50 packages perform the same validated model computations and
+have the same peak integer arithmetic count. Their difference is how those
+resources are physically organized and connected.
+
+| Property | [`tpu2x512`](./tpu2x512) | [`tpu32x32`](./tpu32x32) |
+| --- | --- | --- |
+| Peak integer work | `2 x 512 = 1024` MACs/cycle | `32 x 32 = 1024` MACs/cycle |
+| Physical organization | Two wide 512-MAC clusters | Four local `8 x 32` islands operating together |
+| Data movement | Shared wide streaming and alignment front end | Decode tiles, activation reads, and accumulators remain island-local |
+| Result handling | Wide partial dot products are accumulated after each cluster | Eight local output rows per island are reduced and serialized at the boundary |
+| Implementation emphasis | Less replicated control and high streaming width | Shorter local wiring and lower global fanout |
+
+The array name alone does not determine token throughput. Implemented clock,
+HBM efficiency, model operation mix, and sequence length remain decisive. See
+the architecture section inside each release README for more detail.
 
 ## Project Highlights
 
@@ -31,33 +52,39 @@ line is preserved in `U50HLS` so its three-model release remains reproducible.
 - SHA-256 manifests for every published launcher, runtime, and FPGA image
 - Model weights excluded from Git to keep licensing and distribution explicit
 
-## Current Alveo U50 Release
+## Current Alveo U50 Releases
 
-The recommended [`tpu2x512`](./tpu2x512) package contains one XCLBIN for both
-validated U50 model profiles. It was built with Vitis 2025.2 for the
-`xilinx_u50_gen3x16_xdma_5_202210_1` platform and has an implemented DATA clock
-of 168 MHz.
+Both [`tpu2x512`](./tpu2x512) and [`tpu32x32`](./tpu32x32) contain one XCLBIN
+for the two validated model profiles. They target
+`xilinx_u50_gen3x16_xdma_5_202210_1` and share the same direct-GGUF host
+workflow.
 
-The current runtime supports:
+Both current runtimes support:
 
 - Qwen3.5-9B Q4_K_M
 - Gemma 4 12B IT Q4_K_S
 - Interactive multi-turn sessions
 - Retained conversation state on the FPGA
 - Stable delta-prefill accounting across turns
-- Resident contexts up to 512 tokens for both published profiles, as verified
-  by the runtime HBM-capacity check
+- Binary-only distribution with private source and build paths excluded
+
+`tpu2x512` has an implemented DATA clock of 168 MHz and has passed the
+runtime HBM-capacity check with 512-token resident contexts for both profiles.
+`tpu32x32` has an implemented DATA clock of 160.7 MHz and defaults to a
+128-token resident context.
 
 ### Measured U50 Results
 
-The following single-card measurements use the packaged 168 MHz XCLBIN, a
-short greeting prompt, a 128-token context, and one generation stream. TTFT
-includes prompt prefill. Decode throughput excludes the first output token.
+The following single-card measurements use a short greeting prompt, a
+128-token context, and one generation stream. TTFT includes prompt prefill;
+decode throughput excludes the first output token.
 
-| Model | Prefill | Generated | TTFT | Decode throughput | Total time |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Qwen3.5-9B Q4_K_M | 13 tokens | 9 tokens, EOS | 3.403 s | 3.374 tokens/s | 5.778 s |
-| Gemma 4 12B IT Q4_K_S | 10 tokens | 21 tokens, EOS | 3.560 s | 2.255 tokens/s | 12.639 s |
+| Release | Model | Clock | Prompt | TTFT | Decode throughput |
+| --- | --- | ---: | ---: | ---: | ---: |
+| TPU2x512 | Qwen3.5-9B Q4_K_M | 168 MHz | 13 tokens | 3.403 s | 3.374 tokens/s |
+| TPU2x512 | Gemma 4 12B IT Q4_K_S | 168 MHz | 10 tokens | 3.560 s | 2.255 tokens/s |
+| TPU32x32 | Qwen3.5-9B Q4_K_M | 160.7 MHz | 13 tokens | 5.116 s | 2.243 tokens/s |
+| TPU32x32 | Gemma 4 12B IT Q4_K_S | 160.7 MHz | 10 tokens | 5.270 s | 1.610 tokens/s |
 
 These are board measurements from short single runs, not idealized estimates
 or batched throughput. Results vary with prompt length, sequence position,
@@ -87,9 +114,10 @@ git lfs pull
 
 ### Alveo U50
 
-Read the model download and platform instructions in
-[`tpu2x512/README.md`](./tpu2x512/README.md), then create the required CPython 3.12
-environment:
+Choose [`tpu2x512`](./tpu2x512) or [`tpu32x32`](./tpu32x32), read that
+directory's README, and create the required CPython 3.12 environment. The
+following example selects TPU2x512; substitute `tpu32x32` to use the square
+array release:
 
 ```bash
 cd tpu2x512
@@ -114,8 +142,8 @@ Start an interactive session:
 python u50_chat.py \
   --model qwen \
   --interactive \
-  --max-new-tokens 64 \
-  --max-context 512
+  --max-new-tokens 32 \
+  --max-context 128
 ```
 
 `--max-new-tokens` is the maximum number of newly generated tokens in one
@@ -148,7 +176,8 @@ a persistent converted-weight sidecar file.
 ```text
 OpenTPU/
 |-- README.md       Project overview and release selector
-|-- tpu2x512/       Current Alveo U50 binary release
+|-- tpu2x512/       Wide-streaming Alveo U50 binary release
+|-- tpu32x32/       Locality-oriented Alveo U50 binary release
 |-- U50HLS/         Earlier HLS-based Alveo U50 release
 `-- ultra96/        Ultra96-V2 binary release and notebook
 ```
@@ -159,7 +188,7 @@ download links, board commands, compatibility notes, and integrity checks.
 ## Compatibility Notes
 
 - U50 runtime extensions require 64-bit Linux on x86-64 with CPython 3.12.
-- The current U50 XCLBIN targets
+- The current U50 XCLBINs target
   `xilinx_u50_gen3x16_xdma_5_202210_1`; another shell may not program or run.
 - Ultra96 runtime extensions require AArch64 CPython 3.10 and the documented
   PYNQ image.
