@@ -5,6 +5,7 @@
 !/requirements.txt
 !/SHA256SUMS
 !/u50_chat.py
+!/u50_multi_turn_chat.py
 !/runtime/
 !/runtime/*.so
 !/xclbin/

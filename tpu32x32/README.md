@@ -21,7 +21,9 @@ files are not included.
 
 - Target card: AMD/Xilinx Alveo U50
 - Required shell: `xilinx_u50_gen3x16_xdma_5_202210_1`
-- Implemented DATA clock: 160.7 MHz
+- Release update: 2026-09-05, with the HBM prefetch scheduling fix
+- Implemented DATA clock: 146.5 MHz (XRT displays 146 MHz)
+- Device-reported HBM clock: 395 MHz
 - Default resident context: 128 tokens
 - Default reply request: up to 128 tokens, automatically limited by the
   remaining resident context
@@ -56,6 +58,7 @@ TPU2x512 favors a wide streaming structure.
 |-- requirements.txt
 |-- SHA256SUMS
 |-- u50_chat.py
+|-- u50_multi_turn_chat.py
 |-- runtime/
 |   |-- tpu32x32_runtime_core.cpython-312-x86_64-linux-gnu.so
 |   `-- two model-support binary modules
@@ -66,7 +69,7 @@ TPU2x512 favors a wide streaming structure.
 The package intentionally excludes RTL, HLS, Chisel/Scala, descriptor source,
 Python implementation source, build projects, constraints, reports, logs,
 temporary files, test fixtures, model weights, and tokenizer data. The only
-Python file is the small public launcher shown above.
+Python files are the two small public launchers shown above.
 
 Binary-only packaging reduces accidental source disclosure but does not make a
 distributed executable impossible to reverse engineer.
@@ -111,7 +114,7 @@ python -m pip install -r requirements.txt
 Confirm that XRT can see the card:
 
 ```bash
-xbutil examine
+xrt-smi examine
 ```
 
 ## Model Layout
@@ -146,6 +149,13 @@ python u50_chat.py --model qwen --interactive
 python u50_chat.py --model gemma --interactive
 ```
 
+The dedicated multi-turn entry point uses the same packaged runtime and XCLBIN:
+
+```bash
+python u50_multi_turn_chat.py --model qwen
+python u50_multi_turn_chat.py --model gemma
+```
+
 Use `/clear` to reset the conversation and `/exit` to quit. Later turns submit
 only the new turn while earlier state remains resident on the card. The
 `on_u50` count therefore grows, while `history_replayed` remains zero.
@@ -171,13 +181,25 @@ Run `python u50_chat.py --help` for all options.
 
 ## Measured U50 Smoke Results
 
-The packaged 160.7 MHz implementation produced coherent replies in direct
-hardware tests. Decode throughput excludes the first output token.
+The updated implementation produced coherent replies to `你好` in direct
+hardware tests on 2026-09-05. Decode throughput excludes the first output
+token. Prefill time below is the summed FPGA kernel wait time for the prompt,
+excluding model upload, initialization and host-side descriptor preparation.
 
-| Model | Prompt tokens | TTFT | Decode throughput |
+| Model | Prompt tokens | Prefill kernel time | Decode throughput |
 | --- | ---: | ---: | ---: |
-| Qwen3.5-9B Q4_K_M | 13 | 5.116 s | 2.243 tokens/s |
-| Gemma 4 12B IT Q4_K_S | 10 | 5.270 s | 1.610 tokens/s |
+| Qwen3.5-9B Q4_K_M | 13 | 3.116 s | 3.635 tokens/s |
+| Gemma 4 12B IT Q4_K_S | 10 | 3.280 s | 2.363 tokens/s |
+
+Both models also passed a two-turn name-recall check, followed by `/clear`
+and a fresh greeting. Each session uploaded its model only once and reported
+zero replayed history tokens. The kernel returned to idle without a timeout.
+
+The update fixes a stalled HBM prefetch request being accounted to the wrong
+row group when responses are delayed. Validation included 68 numerical/stall
+matrix tests and a complete 1940-operation Qwen RTL regression. The latter
+took 18,317,411 cycles with an immediately responding memory model; that
+simulation count is not an estimate of real HBM execution time.
 
 These are short smoke measurements, not batched throughput benchmarks.
 

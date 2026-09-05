@@ -13,14 +13,15 @@ separately and remain subject to their original licenses.
 
 | Directory | Hardware | Supported models | Runtime | Status |
 | --- | --- | --- | --- | --- |
-| [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Wide-streaming U50 release; highest measured single-stream speed |
+| [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Wide-streaming U50 release |
 | [`tpu32x32`](./tpu32x32) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Locality-oriented U50 release with four compute islands |
 | [`U50HLS`](./U50HLS) | AMD/Xilinx Alveo U50 | Qwen3.5-9B-MIO Q4_K_M; Gemma 4 E4B Q4_K_M; Qwen3.5-2B BF16 | Linux x86-64, CPython 3.12, XRT | Earlier HLS-based U50 release |
 | [`ultra96`](./ultra96) | Ultra96-V2 | Qwen3.5-2B Q3_K_S | PYNQ 3.0, AArch64, CPython 3.10 | Embedded-board release |
 
-New Alveo U50 users prioritizing measured single-stream throughput should
-start with `tpu2x512`. Use `tpu32x32` to evaluate the placement-local,
-square-array organization. The earlier HLS development line is preserved in
+Compare the measured results below when choosing between the wide-streaming
+`tpu2x512` and placement-local, square-array `tpu32x32` releases. The updated
+`tpu32x32` package includes the HBM prefetch scheduling fix and a dedicated
+multi-turn launcher. The earlier HLS development line is preserved in
 `U50HLS` so its three-model release remains reproducible.
 
 ## U50 Compute Architecture Choices
@@ -70,21 +71,24 @@ Both current runtimes support:
 
 `tpu2x512` has an implemented DATA clock of 168 MHz and has passed the
 runtime HBM-capacity check with 512-token resident contexts for both profiles.
-`tpu32x32` has an implemented DATA clock of 160.7 MHz and defaults to a
-128-token resident context.
+`tpu32x32` has an implemented DATA clock of 146.5 MHz (XRT displays 146 MHz)
+and defaults to a 128-token resident context. Its release was updated on
+2026-09-05.
 
 ### Measured U50 Results
 
 The following single-card measurements use a short greeting prompt, a
-128-token context, and one generation stream. TTFT includes prompt prefill;
-decode throughput excludes the first output token.
+128-token context, and one generation stream. Decode throughput excludes the
+first output token. TPU32x32 prompt time is the summed FPGA kernel wait time
+for prefill, excluding model upload, initialization, and host-side descriptor
+preparation; TPU2x512 retains its previously reported TTFT values.
 
-| Release | Model | Clock | Prompt | TTFT | Decode throughput |
+| Release | Model | Clock | Prompt | Reported prompt time | Decode throughput |
 | --- | --- | ---: | ---: | ---: | ---: |
 | TPU2x512 | Qwen3.5-9B Q4_K_M | 168 MHz | 13 tokens | 3.403 s | 3.374 tokens/s |
 | TPU2x512 | Gemma 4 12B IT Q4_K_S | 168 MHz | 10 tokens | 3.560 s | 2.255 tokens/s |
-| TPU32x32 | Qwen3.5-9B Q4_K_M | 160.7 MHz | 13 tokens | 5.116 s | 2.243 tokens/s |
-| TPU32x32 | Gemma 4 12B IT Q4_K_S | 160.7 MHz | 10 tokens | 5.270 s | 1.610 tokens/s |
+| TPU32x32 | Qwen3.5-9B Q4_K_M | 146.5 MHz | 13 tokens | 3.116 s | 3.635 tokens/s |
+| TPU32x32 | Gemma 4 12B IT Q4_K_S | 146.5 MHz | 10 tokens | 3.280 s | 2.363 tokens/s |
 
 These are board measurements from short single runs, not idealized estimates
 or batched throughput. Results vary with prompt length, sequence position,
