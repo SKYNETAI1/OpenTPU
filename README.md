@@ -13,6 +13,7 @@ separately and remain subject to their original licenses.
 
 | Directory | Hardware | Supported models | Runtime | Status |
 | --- | --- | --- | --- | --- |
+| [`GPGPU14`](./GPGPU14) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | GPUTensor16 direct-model U50 release with 16 HBM weight ports |
 | [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Wide-streaming U50 release |
 | [`tpu32x32`](./tpu32x32) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Locality-oriented U50 release with four compute islands |
 | [`U50HLS`](./U50HLS) | AMD/Xilinx Alveo U50 | Qwen3.5-9B-MIO Q4_K_M; Gemma 4 E4B Q4_K_M; Qwen3.5-2B BF16 | Linux x86-64, CPython 3.12, XRT | Earlier HLS-based U50 release |
@@ -21,8 +22,9 @@ separately and remain subject to their original licenses.
 Compare the measured results below when choosing between the wide-streaming
 `tpu2x512` and placement-local, square-array `tpu32x32` releases. The updated
 `tpu32x32` package includes the HBM prefetch scheduling fix and a dedicated
-multi-turn launcher. The earlier HLS development line is preserved in
-`U50HLS` so its three-model release remains reproducible.
+multi-turn launcher. `GPGPU14` provides the GPUTensor16 direct-model runtime
+and exact host-side greedy sampling. The earlier HLS development line is
+preserved in `U50HLS` so its three-model release remains reproducible.
 
 ## U50 Compute Architecture Choices
 
@@ -53,7 +55,7 @@ the architecture section inside each release README for more detail.
 - SHA-256 manifests for every published launcher, runtime, and FPGA image
 - Model weights excluded from Git to keep licensing and distribution explicit
 
-## Current Alveo U50 Releases
+## TPU Array Alveo U50 Releases
 
 Both [`tpu2x512`](./tpu2x512) and [`tpu32x32`](./tpu32x32) contain one XCLBIN
 for the two validated model profiles. They target
@@ -118,10 +120,10 @@ git lfs pull
 
 ### Alveo U50
 
-Choose [`tpu2x512`](./tpu2x512) or [`tpu32x32`](./tpu32x32), read that
-directory's README, and create the required CPython 3.12 environment. The
-following example selects TPU2x512; substitute `tpu32x32` to use the square
-array release:
+Choose [`GPGPU14`](./GPGPU14), [`tpu2x512`](./tpu2x512), or
+[`tpu32x32`](./tpu32x32), read that directory's README, and create the
+required CPython 3.12 environment. The following example selects TPU2x512;
+substitute another directory name to use that release:
 
 ```bash
 cd tpu2x512
@@ -180,6 +182,7 @@ a persistent converted-weight sidecar file.
 ```text
 OpenTPU/
 |-- README.md       Project overview and release selector
+|-- GPGPU14/        GPUTensor16 direct-model Alveo U50 binary release
 |-- tpu2x512/       Wide-streaming Alveo U50 binary release
 |-- tpu32x32/       Locality-oriented Alveo U50 binary release
 |-- U50HLS/         Earlier HLS-based Alveo U50 release
