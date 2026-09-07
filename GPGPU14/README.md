@@ -1,4 +1,4 @@
-# Direct-Model GPUTensor16 Runtime for AMD Alveo U50
+# Direct-Model GPUTensor14 Runtime for AMD Alveo U50
 
 This directory is a binary-only GitHub release package for text generation on
 one AMD/Xilinx Alveo U50. One XCLBIN supports two GGUF model profiles:
@@ -39,11 +39,11 @@ files are not included.
 |-- u50_chat.py
 |-- u50_multi_turn_chat.py
 |-- runtime/
-|   |-- gputensor16_runtime_core.cpython-312-x86_64-linux-gnu.so
+|   |-- gputensor14_runtime_core.cpython-312-x86_64-linux-gnu.so
 |   |-- u50_software.cpython-312-x86_64-linux-gnu.so
 |   `-- two model-support binary modules
 `-- xclbin/
-    `-- tpu3_hls_full_token.xclbin
+    `-- tpu3_rtl_full_token.xclbin
 ```
 
 The package excludes RTL, HLS and Python implementation source, build

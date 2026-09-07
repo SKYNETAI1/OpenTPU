@@ -99,7 +99,7 @@ wget -O models/gemma-4-12b-it-Q4_K_S.gguf \
 |   |-- tpu2x512_runtime_core.cpython-312-x86_64-linux-gnu.so
 |   `-- model-specific compiled runtime modules
 `-- xclbin/
-    `-- tpu3_hls_full_token.xclbin
+    `-- tpu3_rtl_full_token.xclbin
 ```
 
 This release intentionally excludes RTL, HLS, Chisel/Scala, descriptor-generator
@@ -223,7 +223,7 @@ python u50_chat.py \
   --model qwen \
   --qwen-model /models/Qwen3.5-9B-Q4_K_M.gguf \
   --qwen-tokenizer /models/qwen-tokenizer/tokenizer.json \
-  --xclbin /opt/u50/tpu3_hls_full_token.xclbin \
+  --xclbin /opt/u50/tpu3_rtl_full_token.xclbin \
   --interactive
 ```
 

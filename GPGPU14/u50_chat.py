@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch the packaged GPUTensor16 Alveo U50 runtime."""
+"""Launch the packaged GPUTensor14 Alveo U50 runtime."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ import sys
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 RUNTIME_DIR = PACKAGE_ROOT / "runtime"
-os.environ.setdefault("GPUTENSOR16_RUNTIME_ROOT", str(PACKAGE_ROOT))
+os.environ.setdefault("GPUTENSOR14_RUNTIME_ROOT", str(PACKAGE_ROOT))
 sys.path.insert(0, str(RUNTIME_DIR))
 
-from gputensor16_runtime_core import main
+from gputensor14_runtime_core import main
 
 
 if __name__ == "__main__":

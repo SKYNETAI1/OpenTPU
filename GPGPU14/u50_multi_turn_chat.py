@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch GPUTensor16 in interactive multi-turn mode."""
+"""Launch GPUTensor14 in interactive multi-turn mode."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ import sys
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 RUNTIME_DIR = PACKAGE_ROOT / "runtime"
-os.environ.setdefault("GPUTENSOR16_RUNTIME_ROOT", str(PACKAGE_ROOT))
+os.environ.setdefault("GPUTENSOR14_RUNTIME_ROOT", str(PACKAGE_ROOT))
 sys.path.insert(0, str(RUNTIME_DIR))
 
-from gputensor16_runtime_core import main
+from gputensor14_runtime_core import main
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ separately and remain subject to their original licenses.
 
 | Directory | Hardware | Supported models | Runtime | Status |
 | --- | --- | --- | --- | --- |
-| [`GPGPU14`](./GPGPU14) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | GPUTensor16 direct-model U50 release with 16 HBM weight ports |
+| [`GPGPU14`](./GPGPU14) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | GPUTensor14 direct-model U50 release with 16 HBM weight ports |
 | [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Wide-streaming U50 release |
 | [`tpu32x32`](./tpu32x32) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Locality-oriented U50 release with four compute islands |
 | [`U50HLS`](./U50HLS) | AMD/Xilinx Alveo U50 | Qwen3.5-9B-MIO Q4_K_M; Gemma 4 E4B Q4_K_M; Qwen3.5-2B BF16 | Linux x86-64, CPython 3.12, XRT | Earlier HLS-based U50 release |
@@ -22,7 +22,7 @@ separately and remain subject to their original licenses.
 Compare the measured results below when choosing between the wide-streaming
 `tpu2x512` and placement-local, square-array `tpu32x32` releases. The updated
 `tpu32x32` package includes the HBM prefetch scheduling fix and a dedicated
-multi-turn launcher. `GPGPU14` provides the GPUTensor16 direct-model runtime
+multi-turn launcher. `GPGPU14` provides the GPUTensor14 direct-model runtime
 and exact host-side greedy sampling. The earlier HLS development line is
 preserved in `U50HLS` so its three-model release remains reproducible.
 
@@ -182,7 +182,7 @@ a persistent converted-weight sidecar file.
 ```text
 OpenTPU/
 |-- README.md       Project overview and release selector
-|-- GPGPU14/        GPUTensor16 direct-model Alveo U50 binary release
+|-- GPGPU14/        GPUTensor14 direct-model Alveo U50 binary release
 |-- tpu2x512/       Wide-streaming Alveo U50 binary release
 |-- tpu32x32/       Locality-oriented Alveo U50 binary release
 |-- U50HLS/         Earlier HLS-based Alveo U50 release

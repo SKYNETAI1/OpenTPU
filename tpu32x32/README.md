@@ -63,7 +63,7 @@ TPU2x512 favors a wide streaming structure.
 |   |-- tpu32x32_runtime_core.cpython-312-x86_64-linux-gnu.so
 |   `-- two model-support binary modules
 `-- xclbin/
-    `-- tpu3_hls_full_token.xclbin
+    `-- tpu3_rtl_full_token.xclbin
 ```
 
 The package intentionally excludes RTL, HLS, Chisel/Scala, descriptor source,
