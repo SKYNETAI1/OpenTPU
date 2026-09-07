@@ -13,36 +13,37 @@ separately and remain subject to their original licenses.
 
 | Directory | Hardware | Supported models | Runtime | Status |
 | --- | --- | --- | --- | --- |
-| [`GPGPU14`](./GPGPU14) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | GPUTensor14 direct-model U50 release with 16 HBM weight ports |
+| [`GPGPU14`](./GPGPU14) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | GPUTensor14 direct-model release with 16 HBM weight ports and exact host sampling |
 | [`tpu2x512`](./tpu2x512) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Wide-streaming U50 release |
 | [`tpu32x32`](./tpu32x32) | AMD/Xilinx Alveo U50 | Qwen3.5-9B Q4_K_M; Gemma 4 12B IT Q4_K_S | Linux x86-64, CPython 3.12, XRT | Locality-oriented U50 release with four compute islands |
 | [`U50HLS`](./U50HLS) | AMD/Xilinx Alveo U50 | Qwen3.5-9B-MIO Q4_K_M; Gemma 4 E4B Q4_K_M; Qwen3.5-2B BF16 | Linux x86-64, CPython 3.12, XRT | Earlier HLS-based U50 release |
 | [`ultra96`](./ultra96) | Ultra96-V2 | Qwen3.5-2B Q3_K_S | PYNQ 3.0, AArch64, CPython 3.10 | Embedded-board release |
 
-Compare the measured results below when choosing between the wide-streaming
-`tpu2x512` and placement-local, square-array `tpu32x32` releases. The updated
-`tpu32x32` package includes the HBM prefetch scheduling fix and a dedicated
-multi-turn launcher. `GPGPU14` provides the GPUTensor14 direct-model runtime
-and exact host-side greedy sampling. The earlier HLS development line is
-preserved in `U50HLS` so its three-model release remains reproducible.
+The three current U50 directories use the same direct-GGUF model workflow and
+U50 shell. `GPGPU14` provides the GPUTensor14 runtime and exact host-side
+greedy sampling. `tpu2x512` uses a wide streaming array, while `tpu32x32`
+uses four placement-local compute islands and includes the HBM prefetch
+scheduling fix. The earlier development line remains in `U50HLS` so its
+three-model release stays available.
 
-## U50 Compute Architecture Choices
+## U50 Release Choices
 
-The two current U50 packages perform the same validated model computations and
-have the same peak integer arithmetic count. Their difference is how those
-resources are physically organized and connected.
+All three current packages run the two validated model profiles directly from
+their original GGUF files. They differ in datapath organization, implemented
+clock, context capacity, and sampling path.
 
-| Property | [`tpu2x512`](./tpu2x512) | [`tpu32x32`](./tpu32x32) |
-| --- | --- | --- |
-| Peak integer work | `2 x 512 = 1024` MACs/cycle | `32 x 32 = 1024` MACs/cycle |
-| Physical organization | Two wide 512-MAC clusters | Four local `8 x 32` islands operating together |
-| Data movement | Shared wide streaming and alignment front end | Decode tiles, activation reads, and accumulators remain island-local |
-| Result handling | Wide partial dot products are accumulated after each cluster | Eight local output rows per island are reduced and serialized at the boundary |
-| Implementation emphasis | Less replicated control and high streaming width | Shorter local wiring and lower global fanout |
+| Property | [`GPGPU14`](./GPGPU14) | [`tpu2x512`](./tpu2x512) | [`tpu32x32`](./tpu32x32) |
+| --- | --- | --- | --- |
+| Release identity | GPUTensor14 direct-model runtime | TPU2x512 wide-streaming runtime | TPU32x32 locality-oriented runtime |
+| Datapath organization | Full-token path with 16 HBM weight ports | Two wide 512-MAC clusters | Four local `8 x 32` islands operating together |
+| Implemented DATA clock | 157.8 MHz | 168 MHz | 146.5 MHz |
+| Default resident context | 128 tokens | 512 tokens | 128 tokens |
+| Main emphasis | Exact full-vocabulary host sampling | High streaming width and larger resident context | Shorter wiring and lower global fanout |
 
-The array name alone does not determine token throughput. Implemented clock,
-HBM efficiency, model operation mix, and sequence length remain decisive. See
-the architecture section inside each release README for more detail.
+TPU2x512 and TPU32x32 each provide 1024 integer MACs per cycle in different
+physical shapes. Array dimensions alone do not determine token throughput;
+implemented clock, HBM efficiency, model operation mix, and sequence length
+remain decisive. See each release README for its exact configuration.
 
 ## Project Highlights
 
@@ -55,14 +56,21 @@ the architecture section inside each release README for more detail.
 - SHA-256 manifests for every published launcher, runtime, and FPGA image
 - Model weights excluded from Git to keep licensing and distribution explicit
 
-## TPU Array Alveo U50 Releases
+## Current Alveo U50 Releases
 
-Both [`tpu2x512`](./tpu2x512) and [`tpu32x32`](./tpu32x32) contain one XCLBIN
-for the two validated model profiles. They target
-`xilinx_u50_gen3x16_xdma_5_202210_1` and share the same direct-GGUF host
-workflow.
+Each current U50 directory contains one Git LFS-managed FPGA image for both
+validated model profiles:
 
-Both current runtimes support:
+| Release | FPGA image |
+| --- | --- |
+| GPUTensor14 | [`GPGPU14/xclbin/tpu3_rtl_full_token.xclbin`](./GPGPU14/xclbin/tpu3_rtl_full_token.xclbin) |
+| TPU2x512 | [`tpu2x512/xclbin/tpu3_rtl_full_token.xclbin`](./tpu2x512/xclbin/tpu3_rtl_full_token.xclbin) |
+| TPU32x32 | [`tpu32x32/xclbin/tpu3_rtl_full_token.xclbin`](./tpu32x32/xclbin/tpu3_rtl_full_token.xclbin) |
+
+All three target `xilinx_u50_gen3x16_xdma_5_202210_1` and share the same
+direct-GGUF host workflow.
+
+The current runtimes support:
 
 - Qwen3.5-9B Q4_K_M
 - Gemma 4 12B IT Q4_K_S
@@ -71,19 +79,22 @@ Both current runtimes support:
 - Stable delta-prefill accounting across turns
 - Binary-only distribution with private source and build paths excluded
 
-`tpu2x512` has an implemented DATA clock of 168 MHz and has passed the
-runtime HBM-capacity check with 512-token resident contexts for both profiles.
-`tpu32x32` has an implemented DATA clock of 146.5 MHz (XRT displays 146 MHz)
-and defaults to a 128-token resident context. Its release was updated on
-2026-09-05.
+`GPGPU14` uses a 157.8 MHz implemented DATA clock, a 500 MHz kernel clock, and
+a 128-token default context. Its default host sampler reads the final BF16
+logits and applies the FPGA NaN, tie, and Gemma softcap rules over the full
+vocabulary. `tpu2x512` uses a 168 MHz DATA clock and has passed the runtime
+HBM-capacity check with 512-token resident contexts. `tpu32x32` uses a
+146.5 MHz DATA clock (XRT displays 146 MHz) and defaults to 128 tokens.
 
 ### Measured U50 Results
 
-The following single-card measurements use a short greeting prompt, a
-128-token context, and one generation stream. Decode throughput excludes the
-first output token. TPU32x32 prompt time is the summed FPGA kernel wait time
-for prefill, excluding model upload, initialization, and host-side descriptor
-preparation; TPU2x512 retains its previously reported TTFT values.
+The comparable single-card measurements currently published for TPU2x512 and
+TPU32x32 use a short greeting prompt, a 128-token context, and one generation
+stream. Decode throughput excludes the first output token. TPU32x32 prompt
+time is the summed FPGA kernel wait time for prefill, excluding model upload,
+initialization, and host-side descriptor preparation; TPU2x512 retains its
+previously reported TTFT values. GPUTensor14 is omitted from this table until
+a result using the same measurement conditions is recorded.
 
 | Release | Model | Clock | Prompt | Reported prompt time | Decode throughput |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -122,11 +133,11 @@ git lfs pull
 
 Choose [`GPGPU14`](./GPGPU14), [`tpu2x512`](./tpu2x512), or
 [`tpu32x32`](./tpu32x32), read that directory's README, and create the
-required CPython 3.12 environment. The following example selects TPU2x512;
+required CPython 3.12 environment. The following example selects GPUTensor14;
 substitute another directory name to use that release:
 
 ```bash
-cd tpu2x512
+cd GPGPU14
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
