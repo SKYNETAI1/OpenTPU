@@ -1,5 +1,13 @@
 # Direct-Model LLM Runtime for AMD Alveo U50
 
+## AI Authorship Notice
+
+OpenTPU is an AI-built project. The entire project was designed and created
+end-to-end by AI, including the system architecture, FPGA designs, host
+runtimes, integration, validation workflows, release packaging, and
+documentation. Human participation was limited to providing objectives,
+hardware access, and executing physical-board operations when required.
+
 This repository contains a packaged FPGA runtime for interactive large-language-model inference on a single AMD/Xilinx Alveo U50. One XCLBIN supports all three included model profiles, and the command-line launcher can run them individually or sequentially.
 
 The runtime reads the supported GGUF or safetensors model file directly. It does not require an offline weight-conversion step or a second, repacked weight file.

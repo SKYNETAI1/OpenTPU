@@ -1,5 +1,13 @@
 # Direct-Model TPU2x512 Runtime for AMD Alveo U50
 
+## AI Authorship Notice
+
+OpenTPU is an AI-built project. The entire project was designed and created
+end-to-end by AI, including the system architecture, FPGA designs, host
+runtimes, integration, validation workflows, release packaging, and
+documentation. Human participation was limited to providing objectives,
+hardware access, and executing physical-board operations when required.
+
 This directory contains a packaged FPGA runtime for interactive text generation
 on one AMD/Xilinx Alveo U50. One XCLBIN supports two validated GGUF model
 profiles: Qwen3.5-9B Q4_K_M and Gemma 4 12B IT Q4_K_S.

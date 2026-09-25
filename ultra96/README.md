@@ -1,5 +1,13 @@
 # Qwen3.5-2B on Ultra96
 
+## AI Authorship Notice
+
+OpenTPU is an AI-built project. The entire project was designed and created
+end-to-end by AI, including the system architecture, FPGA designs, host
+runtimes, integration, validation workflows, release packaging, and
+documentation. Human participation was limited to providing objectives,
+hardware access, and executing physical-board operations when required.
+
 This package runs `Qwen3.5-2B-Q3_K_S.gguf` directly on an Ultra96-V2 board.
 Quantized matrix weights remain in the original GGUF representation and are
 decoded by the programmable-logic engine. The ARM handles the tokenizer,

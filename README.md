@@ -1,5 +1,13 @@
 # OpenTPU
 
+## AI Authorship Notice
+
+OpenTPU is an AI-built project. The entire project was designed and created
+end-to-end by AI, including the system architecture, FPGA designs, host
+runtimes, integration, validation workflows, release packaging, and
+documentation. Human participation was limited to providing objectives,
+hardware access, and executing physical-board operations when required.
+
 OpenTPU is an FPGA large-language-model inference project with deployable
 runtime packages for AMD/Xilinx Alveo U50 and Ultra96-V2 hardware. The current
 releases execute supported model files directly, without requiring users to
