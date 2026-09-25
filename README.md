@@ -2,16 +2,21 @@
 
 ## AI Authorship Notice
 
-OpenTPU is an AI-built project. The entire project was designed and created
-end-to-end by AI, including the system architecture, FPGA designs, host
-runtimes, integration, validation workflows, release packaging, and
-documentation. Human participation was limited to providing objectives,
+OpenTPU is an AI-built, ASIC-first accelerator project. Every architecture in
+this repository was conceived and engineered by AI for eventual ASIC
+implementation, including the system architecture, compute and memory
+dataflows, RTL/HLS, host runtimes, integration, verification, release
+packaging, and documentation. The FPGA packages are validation vehicles used
+to prove functionality, numerical behavior, interfaces, memory operation, and
+end-to-end execution on real hardware; FPGA deployment is not the final
+architectural target. Human participation was limited to providing objectives,
 hardware access, and executing physical-board operations when required.
 
-OpenTPU is an FPGA large-language-model inference project with deployable
-runtime packages for AMD/Xilinx Alveo U50 and Ultra96-V2 hardware. The current
-releases execute supported model files directly, without requiring users to
-create a second converted or repacked model image.
+OpenTPU is an ASIC-first large-language-model inference accelerator project.
+Deployable runtime packages for AMD/Xilinx Alveo U50 and Ultra96-V2 provide
+real-hardware FPGA validation of the architectures before ASIC implementation.
+The current releases execute supported model files directly, without requiring
+users to create a second converted or repacked model image.
 
 The repository contains hardware-specific binary releases, launchers,
 integrity manifests, and board documentation. Model weights are downloaded
@@ -55,6 +60,10 @@ remain decisive. See each release README for its exact configuration.
 
 ## Project Highlights
 
+- ASIC-first accelerator architectures with FPGA used for real-hardware
+  functional and integration validation
+- End-to-end AI engineering across architecture, RTL/HLS, runtime, validation,
+  and release packaging
 - Direct use of the validated GGUF model files
 - FPGA-side execution of the model datapath
 - Interactive and one-shot text generation
@@ -101,8 +110,9 @@ TPU32x32 use a short greeting prompt, a 128-token context, and one generation
 stream. Decode throughput excludes the first output token. TPU32x32 prompt
 time is the summed FPGA kernel wait time for prefill, excluding model upload,
 initialization, and host-side descriptor preparation; TPU2x512 retains its
-previously reported TTFT values. GPUTensor14 is omitted from this table until
-a result using the same measurement conditions is recorded.
+previously reported TTFT values. GPUTensor14 uses different validation prompts,
+so its measured results are reported separately instead of being presented as
+a directly comparable row.
 
 | Release | Model | Clock | Prompt | Reported prompt time | Decode throughput |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -110,6 +120,17 @@ a result using the same measurement conditions is recorded.
 | TPU2x512 | Gemma 4 12B IT Q4_K_S | 168 MHz | 10 tokens | 3.560 s | 2.255 tokens/s |
 | TPU32x32 | Qwen3.5-9B Q4_K_M | 146.5 MHz | 13 tokens | 3.116 s | 3.635 tokens/s |
 | TPU32x32 | Gemma 4 12B IT Q4_K_S | 146.5 MHz | 10 tokens | 3.280 s | 2.363 tokens/s |
+
+The current GPUTensor14 full-token FPGA validation image produced these
+single-card results. See [`GPGPU14/README.md`](./GPGPU14/README.md) for the
+complete measurement conditions and the boundary between the programmable
+14-core architecture and the published full-token validation path.
+
+| Model / scenario | Output | First token | Decode throughput |
+| --- | ---: | ---: | ---: |
+| Qwen3.5-9B Q4_K_M, raw input token `[109266]` | 32 tokens | 0.753 s | **1.312 tokens/s** |
+| Gemma 4 12B IT Q4_K_S, templated `你好` | 21 tokens | 4.637 s | **1.781 tokens/s** |
+| Gemma multi-turn second turn with longer retained context | 53 tokens total across two turns | Incremental prefill | **1.390 tokens/s** |
 
 These are board measurements from short single runs, not idealized estimates
 or batched throughput. Results vary with prompt length, sequence position,

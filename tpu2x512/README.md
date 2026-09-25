@@ -2,10 +2,14 @@
 
 ## AI Authorship Notice
 
-OpenTPU is an AI-built project. The entire project was designed and created
-end-to-end by AI, including the system architecture, FPGA designs, host
-runtimes, integration, validation workflows, release packaging, and
-documentation. Human participation was limited to providing objectives,
+OpenTPU is an AI-built, ASIC-first accelerator project. Every architecture in
+this repository was conceived and engineered by AI for eventual ASIC
+implementation, including the system architecture, compute and memory
+dataflows, RTL/HLS, host runtimes, integration, verification, release
+packaging, and documentation. The FPGA packages are validation vehicles used
+to prove functionality, numerical behavior, interfaces, memory operation, and
+end-to-end execution on real hardware; FPGA deployment is not the final
+architectural target. Human participation was limited to providing objectives,
 hardware access, and executing physical-board operations when required.
 
 This directory contains a packaged FPGA runtime for interactive text generation
